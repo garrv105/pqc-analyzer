@@ -11,11 +11,10 @@ All implementations use Python's cryptography library for correctness.
 Performance profiling is built in for comparative analysis.
 """
 
-import hashlib
 import logging
 import secrets
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 import numpy as np
 
@@ -30,8 +29,8 @@ class RSABenchmark:
 
     def benchmark(self, iterations: int = 10) -> Dict:
         try:
-            from cryptography.hazmat.primitives.asymmetric import rsa, padding
             from cryptography.hazmat.primitives import hashes
+            from cryptography.hazmat.primitives.asymmetric import padding, rsa
         except ImportError:
             return {"error": "cryptography package not installed"}
 
@@ -56,7 +55,7 @@ class RSABenchmark:
                     mgf=padding.MGF1(algorithm=hashes.SHA256()),
                     algorithm=hashes.SHA256(),
                     label=None,
-                )
+                ),
             )
             encrypt_times.append(time.perf_counter() - t0)
 
@@ -68,7 +67,7 @@ class RSABenchmark:
                     mgf=padding.MGF1(algorithm=hashes.SHA256()),
                     algorithm=hashes.SHA256(),
                     label=None,
-                )
+                ),
             )
             decrypt_times.append(time.perf_counter() - t0)
             assert plaintext == message
@@ -102,8 +101,6 @@ class ECDHBenchmark:
     def benchmark(self, iterations: int = 100) -> Dict:
         try:
             from cryptography.hazmat.primitives.asymmetric import ec, x25519
-            from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-            from cryptography.hazmat.primitives import hashes
         except ImportError:
             return {"error": "cryptography package not installed"}
 
@@ -178,7 +175,7 @@ class SymmetricBenchmark:
             for _ in range(iterations):
                 nonce = secrets.token_bytes(12)
                 t0 = time.perf_counter()
-                ct = aes.encrypt(nonce, message, None)
+                aes.encrypt(nonce, message, None)
                 times.append(time.perf_counter() - t0)
 
             arr = np.array(times) * 1000

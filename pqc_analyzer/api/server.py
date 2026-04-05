@@ -27,7 +27,6 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -62,9 +61,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=()"
         response.headers["Cache-Control"] = "no-store"
         if request.url.scheme == "https":
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=63072000; includeSubDomains; preload"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self'; "
@@ -160,26 +157,27 @@ def create_app(output_dir: str = "outputs") -> FastAPI:
 
     def get_components():
         if "ready" not in _state:
-            from ..crypto.kyber import KyberKEM, KYBER_VARIANTS
-            from ..crypto.classical import RSABenchmark, ECDHBenchmark
+            from ..ai.optimizer import ParameterOptimizer, SecurityStrengthPredictor, WeaknessDetector
+            from ..crypto.kyber import KYBER_VARIANTS
             from ..quantum.attack_simulator import (
                 GroverAttackModel,
-                ShorAttackModel,
                 LatticeAttackModel,
                 QuantumCircuitDemo,
+                ShorAttackModel,
             )
-            from ..ai.optimizer import SecurityStrengthPredictor, ParameterOptimizer, WeaknessDetector
 
-            _state.update({
-                "kyber_variants": KYBER_VARIANTS,
-                "grover": GroverAttackModel(),
-                "shor": ShorAttackModel(),
-                "lattice": LatticeAttackModel(),
-                "qc_demo": QuantumCircuitDemo(),
-                "predictor": SecurityStrengthPredictor(),
-                "weakness": WeaknessDetector(),
-                "ready": True,
-            })
+            _state.update(
+                {
+                    "kyber_variants": KYBER_VARIANTS,
+                    "grover": GroverAttackModel(),
+                    "shor": ShorAttackModel(),
+                    "lattice": LatticeAttackModel(),
+                    "qc_demo": QuantumCircuitDemo(),
+                    "predictor": SecurityStrengthPredictor(),
+                    "weakness": WeaknessDetector(),
+                    "ready": True,
+                }
+            )
             _state["optimizer"] = ParameterOptimizer(_state["predictor"])
         return _state
 
@@ -210,9 +208,10 @@ def create_app(output_dir: str = "outputs") -> FastAPI:
     @app.get("/api/v1/health", tags=["system"])
     async def health():
         try:
-            import qiskit
-            qiskit_available = True
-        except ImportError:
+            import importlib.util
+
+            qiskit_available = importlib.util.find_spec("qiskit") is not None
+        except Exception:
             qiskit_available = False
         return {"status": "ok", "version": "1.0.0", "qiskit_available": qiskit_available}
 
@@ -228,7 +227,8 @@ def create_app(output_dir: str = "outputs") -> FastAPI:
         _user: CurrentUser = Depends(get_current_user),
     ):
         """Benchmark a Kyber variant and return comprehensive security analysis."""
-        from ..crypto.kyber import KyberKEM, KYBER_VARIANTS
+        from ..crypto.kyber import KyberKEM
+
         s = get_components()
         params = s["kyber_variants"][req.variant]
         kem = KyberKEM(params)
@@ -245,7 +245,7 @@ def create_app(output_dir: str = "outputs") -> FastAPI:
         _user: CurrentUser = Depends(get_current_user),
     ):
         """Benchmark a classical cryptographic algorithm."""
-        from ..crypto.classical import RSABenchmark, ECDHBenchmark
+        from ..crypto.classical import ECDHBenchmark, RSABenchmark
 
         if req.algorithm.startswith("RSA"):
             bits = int(req.algorithm.split("-")[1])
@@ -323,7 +323,12 @@ def create_app(output_dir: str = "outputs") -> FastAPI:
         s = get_components()
         check = s["weakness"].check(req.k, req.n, req.q, req.eta, req.du, req.dv)
         prediction = s["predictor"].predict(
-            req.k, req.n, req.q, req.eta, req.du, req.dv,
+            req.k,
+            req.n,
+            req.q,
+            req.eta,
+            req.du,
+            req.dv,
             32 * req.k * req.n * 12 // 8 + 32,
             req.k * req.n * req.du // 8 + req.n * req.dv // 8,
         )
@@ -348,8 +353,8 @@ def create_app(output_dir: str = "outputs") -> FastAPI:
         _user: CurrentUser = Depends(get_current_user),
     ):
         """Full comparative analysis: all Kyber variants vs classical algorithms."""
-        from ..crypto.kyber import KyberKEM, KYBER_VARIANTS
-        from ..crypto.classical import RSABenchmark, ECDHBenchmark
+        from ..crypto.classical import ECDHBenchmark, RSABenchmark
+        from ..crypto.kyber import KYBER_VARIANTS, KyberKEM
 
         results: dict = {"kyber": {}, "classical": {}}
 
@@ -380,6 +385,7 @@ def create_app(output_dir: str = "outputs") -> FastAPI:
     ):
         """Trigger chart generation (runs in background)."""
         from ..visualization.charts import generate_all_charts
+
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         bg.add_task(generate_all_charts, output_dir=output_dir)
         return {"message": "Chart generation started", "output_dir": output_dir}

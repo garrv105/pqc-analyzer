@@ -7,7 +7,7 @@ the Module Learning With Errors (MLWE) problem.
 
 Security levels implemented:
   - Kyber-512  (k=2, ~128-bit security, Category 1)
-  - Kyber-768  (k=3, ~192-bit security, Category 3)  
+  - Kyber-768  (k=3, ~192-bit security, Category 3)
   - Kyber-1024 (k=4, ~256-bit security, Category 5)
 
 This implementation is for RESEARCH AND ANALYSIS purposes.
@@ -19,32 +19,31 @@ References:
 """
 
 import hashlib
-import os
 import secrets
-import struct
 import time
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
 
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Kyber parameters
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class KyberParams:
     """Complete parameter set for a Kyber security level."""
+
     name: str
-    k: int          # Module rank
-    n: int = 256    # Polynomial degree
-    q: int = 3329   # Modulus
-    eta1: int = 2   # Noise distribution parameter (KeyGen)
-    eta2: int = 2   # Noise distribution parameter (Encap)
-    du: int = 10    # Ciphertext compression bits (u)
-    dv: int = 4     # Ciphertext compression bits (v)
-    security_level: int = 0   # NIST category (1/3/5)
+    k: int  # Module rank
+    n: int = 256  # Polynomial degree
+    q: int = 3329  # Modulus
+    eta1: int = 2  # Noise distribution parameter (KeyGen)
+    eta2: int = 2  # Noise distribution parameter (Encap)
+    du: int = 10  # Ciphertext compression bits (u)
+    dv: int = 4  # Ciphertext compression bits (v)
+    security_level: int = 0  # NIST category (1/3/5)
 
     @property
     def public_key_bytes(self) -> int:
@@ -79,6 +78,7 @@ KYBER_VARIANTS = {
 # ---------------------------------------------------------------------------
 # Mathematical primitives
 # ---------------------------------------------------------------------------
+
 
 class KyberMath:
     """Core Number Theoretic Transform (NTT) and polynomial arithmetic."""
@@ -151,13 +151,13 @@ class KyberMath:
     @classmethod
     def compress(cls, x: np.ndarray, d: int) -> np.ndarray:
         """Compress polynomial coefficients to d bits."""
-        factor = (1 << d)
+        factor = 1 << d
         return np.round(x * factor / cls.Q).astype(np.int64) % factor
 
     @classmethod
     def decompress(cls, x: np.ndarray, d: int) -> np.ndarray:
         """Decompress polynomial coefficients from d bits."""
-        factor = (1 << d)
+        factor = 1 << d
         return np.round(x * cls.Q / factor).astype(np.int64) % cls.Q
 
     @classmethod
@@ -177,6 +177,7 @@ class KyberMath:
     def _prf(seed: bytes, length: int) -> bytes:
         """Pseudorandom function using SHAKE-256."""
         import hashlib
+
         h = hashlib.shake_256(seed)
         return h.digest(length)
 
@@ -184,6 +185,7 @@ class KyberMath:
     def xof(rho: bytes, i: int, j: int, length: int) -> bytes:
         """XOF for matrix generation (SHAKE-128)."""
         import hashlib
+
         seed = rho + bytes([i, j])
         h = hashlib.shake_128(seed)
         return h.digest(length)
@@ -191,10 +193,8 @@ class KyberMath:
     @classmethod
     def sample_ntt(cls, seed: bytes) -> np.ndarray:
         """Sample a polynomial uniform over Rq using rejection sampling."""
-        buf = seed
         coeffs = []
-        pos = 0
-        raw = bytearray(buf)
+        raw = bytearray(seed)
         extra = hashlib.shake_128(seed).digest(3 * 256)
         raw = extra
         i = 0
@@ -215,10 +215,11 @@ class KyberMath:
 # Kyber KEM
 # ---------------------------------------------------------------------------
 
+
 class KyberKEM:
     """
     CRYSTALS-Kyber Key Encapsulation Mechanism.
-    
+
     Implements ML-KEM as specified in FIPS 203 (draft).
     Supports all three security levels (512/768/1024).
     """
@@ -233,7 +234,7 @@ class KyberKEM:
     def keygen(self) -> Tuple[bytes, bytes]:
         """
         Generate a Kyber key pair.
-        
+
         Returns:
             (public_key, private_key)
         """
@@ -256,10 +257,7 @@ class KyberKEM:
 
         # t_hat = A_hat * s_hat + e_hat
         t_hat = self._mat_vec_mul(A_hat, s_hat, k)
-        t_hat = [
-            (t_hat[i] + e_hat[i]) % self.math.Q
-            for i in range(k)
-        ]
+        t_hat = [(t_hat[i] + e_hat[i]) % self.math.Q for i in range(k)]
 
         # Serialize
         ek = self._serialize_poly_vec(t_hat, 12) + rho
@@ -272,10 +270,10 @@ class KyberKEM:
     def encapsulate(self, public_key: bytes) -> Tuple[bytes, bytes]:
         """
         Encapsulate a shared secret.
-        
+
         Args:
             public_key: recipient's public key
-            
+
         Returns:
             (ciphertext, shared_secret)
         """
@@ -322,12 +320,12 @@ class KyberKEM:
     def decapsulate(self, private_key: bytes, public_key: bytes, ciphertext: bytes) -> bytes:
         """
         Decapsulate to recover the shared secret.
-        
+
         Args:
             private_key: recipient's private key
             public_key: recipient's public key
             ciphertext: ciphertext from encapsulate()
-            
+
         Returns:
             shared_secret (32 bytes)
         """
@@ -340,7 +338,7 @@ class KyberKEM:
         u_c = self._unpack_bits(ciphertext[:u_bytes], 256 * k, self.params.du)
         v_c = self._unpack_bits(ciphertext[u_bytes:], 256, self.params.dv)
 
-        u = [self.math.decompress(u_c[i*256:(i+1)*256], self.params.du) for i in range(k)]
+        u = [self.math.decompress(u_c[i * 256 : (i + 1) * 256], self.params.du) for i in range(k)]
         v = self.math.decompress(v_c, self.params.dv)
 
         # m' = v - s^T * u
@@ -371,8 +369,12 @@ class KyberKEM:
 
         def stats(times):
             arr = np.array(times) * 1000  # ms
-            return {"mean_ms": round(float(arr.mean()), 4), "std_ms": round(float(arr.std()), 4),
-                    "min_ms": round(float(arr.min()), 4), "max_ms": round(float(arr.max()), 4)}
+            return {
+                "mean_ms": round(float(arr.mean()), 4),
+                "std_ms": round(float(arr.std()), 4),
+                "min_ms": round(float(arr.min()), 4),
+                "max_ms": round(float(arr.max()), 4),
+            }
 
         return {
             "variant": self.params.name,
@@ -386,7 +388,7 @@ class KyberKEM:
                 "private_key_bytes": self.params.private_key_bytes,
                 "ciphertext_bytes": self.params.ciphertext_bytes,
                 "shared_secret_bytes": self.params.shared_secret_bytes,
-            }
+            },
         }
 
     # ------------------------------------------------------------------
@@ -425,7 +427,7 @@ class KyberKEM:
 
     def _deserialize_poly_vec(self, data: bytes, k: int, bits: int) -> List[np.ndarray]:
         size = 256 * bits // 8
-        return [self._unpack_bits(data[i*size:(i+1)*size], 256, bits) for i in range(k)]
+        return [self._unpack_bits(data[i * size : (i + 1) * size], 256, bits) for i in range(k)]
 
     def _pack_bits(self, poly: np.ndarray, bits: int) -> bytes:
         mask = (1 << bits) - 1
@@ -462,12 +464,12 @@ class KyberKEM:
 
     def _decode_message(self, m: bytes) -> np.ndarray:
         """Encode 32-byte message as polynomial (bit expansion)."""
-        bits = np.unpackbits(np.frombuffer(m, dtype=np.uint8), bitorder='little')
+        bits = np.unpackbits(np.frombuffer(m, dtype=np.uint8), bitorder="little")
         scale = np.int64((self.math.Q + 1) // 2)
-        return (bits[:256].astype(np.int64) * scale)
+        return bits[:256].astype(np.int64) * scale
 
     def _encode_message(self, poly: np.ndarray) -> bytes:
         """Decode polynomial to 32-byte message."""
         scaled = (2 * poly + self.math.Q // 2) // self.math.Q
         bits = (scaled % 2).astype(np.uint8)[:256]
-        return np.packbits(bits, bitorder='little').tobytes()[:32]
+        return np.packbits(bits, bitorder="little").tobytes()[:32]

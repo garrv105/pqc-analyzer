@@ -1,10 +1,16 @@
 """
 Tests: GroverAttackModel, ShorAttackModel, LatticeAttackModel
 """
+
 import math
+
 import pytest
+
 from pqc_analyzer.quantum.attack_simulator import (
-    GroverAttackModel, ShorAttackModel, LatticeAttackModel, QuantumCircuitDemo
+    GroverAttackModel,
+    LatticeAttackModel,
+    QuantumCircuitDemo,
+    ShorAttackModel,
 )
 
 
@@ -14,9 +20,17 @@ class TestGroverAttackModel:
 
     def test_required_keys(self):
         result = self.model.analyze(256, "AES")
-        required = ["algorithm", "key_bits", "attack", "classical_operations",
-                    "quantum_operations", "effective_security_bits",
-                    "required_qubits", "security_label", "recommendation"]
+        required = [
+            "algorithm",
+            "key_bits",
+            "attack",
+            "classical_operations",
+            "quantum_operations",
+            "effective_security_bits",
+            "required_qubits",
+            "security_label",
+            "recommendation",
+        ]
         for k in required:
             assert k in result, f"Missing key: {k}"
 
@@ -55,8 +69,7 @@ class TestShorAttackModel:
 
     def test_rsa_analysis_required_keys(self):
         result = self.model.analyze_rsa(2048)
-        required = ["target", "attack", "logical_qubits",
-                    "physical_qubits_estimate", "recommendation", "broken"]
+        required = ["target", "attack", "logical_qubits", "physical_qubits_estimate", "recommendation", "broken"]
         for k in required:
             assert k in result, f"Missing key: {k}"
 

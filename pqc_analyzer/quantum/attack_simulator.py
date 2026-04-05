@@ -19,10 +19,7 @@ the ALGORITHMIC behavior, not physical quantum hardware.
 
 import logging
 import math
-import time
-from typing import Dict, List, Optional, Tuple
-
-import numpy as np
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -31,25 +28,26 @@ logger = logging.getLogger(__name__)
 # Analytical quantum attack models
 # ---------------------------------------------------------------------------
 
+
 class GroverAttackModel:
     """
     Models Grover's algorithm: quadratic speedup for brute-force search.
-    
+
     For a symmetric cipher with n-bit key:
     - Classical: O(2^n) operations
     - Quantum:   O(2^(n/2)) operations (Grover search)
-    
+
     NIST response: double key lengths (e.g., AES-128 → AES-256 for 128-bit PQ security)
     """
 
     def analyze(self, key_bits: int, algorithm: str = "AES") -> Dict:
-        classical_ops = 2 ** key_bits
+        classical_ops = 2**key_bits
         quantum_ops = 2 ** (key_bits / 2)
         quantum_bits = key_bits / 2
 
         # Required qubits for Grover's (including oracle + work qubits)
         oracle_qubits = key_bits + 10  # rough estimate
-        grover_iterations = math.floor(math.pi / 4 * math.sqrt(2 ** key_bits))
+        grover_iterations = math.floor(math.pi / 4 * math.sqrt(2**key_bits))
 
         # Time estimates (assuming 1 million quantum gates/second — optimistic)
         gate_rate = 1e6
@@ -88,14 +86,14 @@ class ShorAttackModel:
 
     RSA-n: Requires O(n^3) quantum operations, ~2n logical qubits.
     ECC-n: Similar but on elliptic curve group.
-    
+
     Physical qubit estimates assume surface code error correction
     at ~1% physical error rate → ~1000 physical qubits per logical qubit.
     """
 
     # Estimated logical qubits for factoring (from research literature)
     LOGICAL_QUBITS = {
-        512:  1282,
+        512: 1282,
         1024: 2050,
         2048: 4098,
         3072: 6146,
@@ -103,7 +101,7 @@ class ShorAttackModel:
     }
 
     GATE_COUNTS = {  # approximate T-gate count (dominant cost)
-        512:  1.6e9,
+        512: 1.6e9,
         1024: 1.3e10,
         2048: 1.0e11,
         4096: 8.0e11,
@@ -114,12 +112,10 @@ class ShorAttackModel:
         # Find nearest precomputed value
         nearest = min(self.LOGICAL_QUBITS.keys(), key=lambda x: abs(x - key_bits))
 
-        logical_qubits = self.LOGICAL_QUBITS.get(
-            nearest, int(2 * key_bits + 2)
-        )
+        logical_qubits = self.LOGICAL_QUBITS.get(nearest, int(2 * key_bits + 2))
         physical_qubits = logical_qubits * 1000  # surface code overhead
 
-        gate_count = self.GATE_COUNTS.get(nearest, (key_bits ** 3) * 100)
+        gate_count = self.GATE_COUNTS.get(nearest, (key_bits**3) * 100)
 
         # Time at 1 MHz gate rate with error correction
         time_seconds = gate_count / 1e6
@@ -144,7 +140,7 @@ class ShorAttackModel:
         # ECDLP requires ~2.5n qubits for n-bit curve
         logical_qubits = int(2.5 * curve_bits)
         physical_qubits = logical_qubits * 1000
-        gate_count = 40 * curve_bits ** 3
+        gate_count = 40 * curve_bits**3
 
         return {
             "target": f"ECDLP-{curve_bits} ({self._curve_name(curve_bits)})",
@@ -165,20 +161,20 @@ class ShorAttackModel:
 class LatticeAttackModel:
     """
     Models lattice-based attacks (BKZ algorithm) on MLWE/Kyber.
-    
+
     The best known attacks on Kyber use the BKZ lattice reduction algorithm.
     Security is measured in bits as -log2(probability) of attack success.
-    
+
     BKZ complexity grows super-exponentially with block size β,
     providing strong security guarantees for well-chosen parameters.
-    
+
     Reference: Albrecht et al. "On the concrete hardness of Learning with Errors"
     """
 
     # Security estimates from CRYSTALS-Kyber specification (Table 1)
     KYBER_SECURITY = {
-        "Kyber-512":  {"classical": 118, "quantum": 107, "nist_category": 1},
-        "Kyber-768":  {"classical": 183, "quantum": 170, "nist_category": 3},
+        "Kyber-512": {"classical": 118, "quantum": 107, "nist_category": 1},
+        "Kyber-768": {"classical": 183, "quantum": 170, "nist_category": 3},
         "Kyber-1024": {"classical": 257, "quantum": 240, "nist_category": 5},
     }
 
@@ -235,6 +231,7 @@ class LatticeAttackModel:
 # Qiskit quantum circuit demonstrations
 # ---------------------------------------------------------------------------
 
+
 class QuantumCircuitDemo:
     """
     Demonstrates real quantum circuits using Qiskit.
@@ -248,6 +245,7 @@ class QuantumCircuitDemo:
         self._qiskit_available = False
         try:
             import qiskit
+
             self._qiskit_available = True
             logger.info("Qiskit available: %s", qiskit.__version__)
         except ImportError:
@@ -303,14 +301,14 @@ class QuantumCircuitDemo:
             result = simulator.run(compiled, shots=1024).result()
             counts = result.get_counts()
             total = sum(counts.values())
-            probabilities = {k: v/total for k, v in counts.items()}
+            probabilities = {k: v / total for k, v in counts.items()}
             target_prob = probabilities.get(target_state[::-1], 0)  # qiskit reverses bit order
 
             return {
                 "type": "Grover's Search",
                 "qubits": n_qubits,
                 "target_state": target_state,
-                "search_space": 2 ** n_qubits,
+                "search_space": 2**n_qubits,
                 "iterations": 1,
                 "measurement_counts": counts,
                 "target_probability": round(target_prob, 4),
@@ -329,9 +327,9 @@ class QuantumCircuitDemo:
         if not self._qiskit_available:
             return {"type": "QFT", "error": "Qiskit not available", "qubits": n_qubits}
 
-        from qiskit import QuantumCircuit, transpile
-        from qiskit_aer import AerSimulator
         import math
+
+        from qiskit import QuantumCircuit
 
         qc = QuantumCircuit(n_qubits)
 
@@ -341,12 +339,12 @@ class QuantumCircuitDemo:
             n -= 1
             circuit.h(n)
             for qubit in range(n):
-                circuit.cp(math.pi/2**(n-qubit), qubit, n)
+                circuit.cp(math.pi / 2 ** (n - qubit), qubit, n)
             qft_rotations(circuit, n)
 
         def swap_registers(circuit, n):
-            for qubit in range(n//2):
-                circuit.swap(qubit, n-qubit-1)
+            for qubit in range(n // 2):
+                circuit.swap(qubit, n - qubit - 1)
 
         qft_rotations(qc, n_qubits)
         swap_registers(qc, n_qubits)
@@ -365,16 +363,16 @@ class QuantumCircuitDemo:
     def _mock_grover(self, target: str, error: str = None) -> Dict:
         """Return analytical Grover results when Qiskit is unavailable."""
         n = len(target)
-        N = 2 ** n
-        p_target = (1 - 1/N) / (N - 1) if N > 1 else 1.0
-        mock_counts = {s: int(1024 * (0.9 if s == target else 0.1 / (N-1))) for s in [bin(i)[2:].zfill(n) for i in range(N)]}
+        N = 2**n
         return {
             "type": "Grover's Search (analytical model)",
             "qubits": n,
             "target_state": target,
             "search_space": N,
             "iterations": 1,
-            "target_probability_theoretical": round(1 - 1/N, 4) if n == 2 else round(math.sin((2*1+1)*math.asin(1/math.sqrt(N)))**2, 4),
+            "target_probability_theoretical": (
+                round(1 - 1 / N, 4) if n == 2 else round(math.sin((2 * 1 + 1) * math.asin(1 / math.sqrt(N))) ** 2, 4)
+            ),
             "note": f"Qiskit simulation unavailable{': ' + error if error else ''}. Showing analytical results.",
             "speedup": "Quadratic: finds solution in O(√N) vs O(N) classically",
         }

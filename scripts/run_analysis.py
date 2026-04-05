@@ -15,22 +15,17 @@ import logging
 import sys
 from pathlib import Path
 
-import numpy as np
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("pqc_analyzer.run")
 
 
 def print_banner():
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  PQC ANALYZER — Post-Quantum Cryptography Analysis Suite")
     print("  Research-Grade | NIST PQC Standards | AI-Optimized")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
 
 def main():
@@ -42,7 +37,7 @@ def main():
     # 1. Kyber benchmarks
     # -----------------------------------------------
     print("[ 1/5 ] Benchmarking Kyber variants...")
-    from pqc_analyzer.crypto.kyber import KyberKEM, KYBER_VARIANTS
+    from pqc_analyzer.crypto.kyber import KYBER_VARIANTS, KyberKEM
 
     kyber_results = {}
     for name, params in KYBER_VARIANTS.items():
@@ -50,12 +45,16 @@ def main():
         kem = KyberKEM(params)
         result = kem.benchmark(iterations=50)
         kyber_results[name] = result
-        print(f"         KeyGen: {result['keygen']['mean_ms']:.4f}ms | "
-              f"Encap: {result['encapsulate']['mean_ms']:.4f}ms | "
-              f"Decap: {result['decapsulate']['mean_ms']:.4f}ms")
-        print(f"         PK: {result['key_sizes']['public_key_bytes']}B | "
-              f"SK: {result['key_sizes']['private_key_bytes']}B | "
-              f"CT: {result['key_sizes']['ciphertext_bytes']}B")
+        print(
+            f"         KeyGen: {result['keygen']['mean_ms']:.4f}ms | "
+            f"Encap: {result['encapsulate']['mean_ms']:.4f}ms | "
+            f"Decap: {result['decapsulate']['mean_ms']:.4f}ms"
+        )
+        print(
+            f"         PK: {result['key_sizes']['public_key_bytes']}B | "
+            f"SK: {result['key_sizes']['private_key_bytes']}B | "
+            f"CT: {result['key_sizes']['ciphertext_bytes']}B"
+        )
 
     # -----------------------------------------------
     # 2. Classical benchmarks
@@ -64,7 +63,8 @@ def main():
     classical_results = []
 
     try:
-        from pqc_analyzer.crypto.classical import RSABenchmark, ECDHBenchmark, SymmetricBenchmark
+        from pqc_analyzer.crypto.classical import ECDHBenchmark, RSABenchmark, SymmetricBenchmark
+
         for alg, cls, args, iters in [
             ("RSA-2048", RSABenchmark, (2048,), 5),
             ("RSA-4096", RSABenchmark, (4096,), 5),
@@ -87,7 +87,10 @@ def main():
     # -----------------------------------------------
     print("\n[ 3/5 ] Modeling quantum attacks...")
     from pqc_analyzer.quantum.attack_simulator import (
-        GroverAttackModel, ShorAttackModel, LatticeAttackModel, QuantumCircuitDemo
+        GroverAttackModel,
+        LatticeAttackModel,
+        QuantumCircuitDemo,
+        ShorAttackModel,
     )
 
     grover = GroverAttackModel()
@@ -103,13 +106,17 @@ def main():
     print("\n  --- Shor's Algorithm on RSA ---")
     for bits in [2048, 4096]:
         r = shor.analyze_rsa(bits)
-        print(f"  RSA-{bits}: {r['logical_qubits']} logical qubits | ~{r['physical_qubits_estimate']:,} physical qubits")
+        print(
+            f"  RSA-{bits}: {r['logical_qubits']} logical qubits | ~{r['physical_qubits_estimate']:,} physical qubits"
+        )
 
     print("\n  --- BKZ Lattice Attack on Kyber ---")
     for analysis in lattice.compare_all():
         v = analysis.get("variant", "?")
-        print(f"  {v}: Classical={analysis.get('classical_security_bits')}b | "
-              f"Quantum={analysis.get('quantum_security_bits')}b | Status={analysis.get('status')}")
+        print(
+            f"  {v}: Classical={analysis.get('classical_security_bits')}b | "
+            f"Quantum={analysis.get('quantum_security_bits')}b | Status={analysis.get('status')}"
+        )
 
     # Quantum circuit demo
     demo = QuantumCircuitDemo()
@@ -120,7 +127,7 @@ def main():
     # 4. AI Optimization
     # -----------------------------------------------
     print("\n[ 4/5 ] Running AI parameter optimization...")
-    from pqc_analyzer.ai.optimizer import SecurityStrengthPredictor, ParameterOptimizer, WeaknessDetector
+    from pqc_analyzer.ai.optimizer import ParameterOptimizer, SecurityStrengthPredictor, WeaknessDetector
 
     predictor = SecurityStrengthPredictor()
     optimizer = ParameterOptimizer(predictor)
@@ -131,15 +138,19 @@ def main():
     print(f"  Found {opt_result['valid_configs_found']} valid configurations")
     if opt_result.get("most_efficient"):
         best = opt_result["most_efficient"]
-        print(f"  Most efficient: k={best['k']}, n={best['n']}, q={best['q']}, "
-              f"η={best['eta1']}, PQ={best['predicted_quantum_bits']}b, "
-              f"PK={best['pk_bytes']}B")
+        print(
+            f"  Most efficient: k={best['k']}, n={best['n']}, q={best['q']}, "
+            f"η={best['eta1']}, PQ={best['predicted_quantum_bits']}b, "
+            f"PK={best['pk_bytes']}B"
+        )
 
     print("\n  Checking weak parameter configurations...")
     for k, n, q, eta in [(1, 256, 769, 5), (2, 256, 3329, 2)]:
         r = weakness.check(k, n, q, eta, 10, 4)
-        print(f"  k={k},q={q}: {r['overall_assessment']} | "
-              f"Issues: {len(r['critical_issues'])} critical, {len(r['warnings'])} warnings")
+        print(
+            f"  k={k},q={q}: {r['overall_assessment']} | "
+            f"Issues: {len(r['critical_issues'])} critical, {len(r['warnings'])} warnings"
+        )
 
     # -----------------------------------------------
     # 5. Visualizations
@@ -147,6 +158,7 @@ def main():
     print("\n[ 5/5 ] Generating visualizations...")
     try:
         from pqc_analyzer.visualization.charts import generate_all_charts
+
         all_benchmarks = list(kyber_results.values()) + classical_results
         chart_paths = generate_all_charts(all_benchmarks, output_dir)
         for name, path in chart_paths.items():
@@ -160,16 +172,21 @@ def main():
     # -----------------------------------------------
     results_path = Path(output_dir) / "full_analysis.json"
     with open(results_path, "w") as f:
-        json.dump({
-            "kyber_benchmarks": kyber_results,
-            "optimization": opt_result,
-        }, f, indent=2, default=str)
+        json.dump(
+            {
+                "kyber_benchmarks": kyber_results,
+                "optimization": opt_result,
+            },
+            f,
+            indent=2,
+            default=str,
+        )
     print(f"\n  Full results saved to {results_path}")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  Analysis complete.")
     print(f"  Charts in: {output_dir}/")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
 
 if __name__ == "__main__":

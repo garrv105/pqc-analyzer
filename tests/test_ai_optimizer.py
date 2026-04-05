@@ -1,10 +1,10 @@
 """
 Tests: SecurityStrengthPredictor, ParameterOptimizer, WeaknessDetector
 """
+
 import pytest
-from pqc_analyzer.ai.optimizer import (
-    SecurityStrengthPredictor, ParameterOptimizer, WeaknessDetector
-)
+
+from pqc_analyzer.ai.optimizer import ParameterOptimizer, SecurityStrengthPredictor, WeaknessDetector
 
 
 class TestSecurityStrengthPredictor:
@@ -13,9 +13,13 @@ class TestSecurityStrengthPredictor:
 
     def test_predict_returns_required_keys(self):
         result = self.predictor.predict(3, 256, 3329, 2, 10, 4, 1184, 1088)
-        required = ["predicted_classical_security_bits",
-                    "predicted_quantum_security_bits",
-                    "nist_category", "is_weak_configuration", "recommendation"]
+        required = [
+            "predicted_classical_security_bits",
+            "predicted_quantum_security_bits",
+            "nist_category",
+            "is_weak_configuration",
+            "recommendation",
+        ]
         for k in required:
             assert k in result
 
@@ -36,8 +40,7 @@ class TestSecurityStrengthPredictor:
     def test_higher_k_predicts_higher_security(self):
         r_k2 = self.predictor.predict(2, 256, 3329, 2, 10, 4, 800, 768)
         r_k4 = self.predictor.predict(4, 256, 3329, 2, 11, 5, 1568, 1568)
-        assert (r_k4["predicted_quantum_security_bits"] >
-                r_k2["predicted_quantum_security_bits"])
+        assert r_k4["predicted_quantum_security_bits"] > r_k2["predicted_quantum_security_bits"]
 
     def test_nist_category_valid(self):
         result = self.predictor.predict(3, 256, 3329, 2, 10, 4, 1184, 1088)
@@ -63,8 +66,7 @@ class TestParameterOptimizer:
 
     def test_optimize_returns_required_keys(self):
         result = self.optimizer.optimize(target_quantum_bits=100, n_trials=50)
-        required = ["target_quantum_bits", "trials",
-                    "valid_configs_found", "top_5_configurations"]
+        required = ["target_quantum_bits", "trials", "valid_configs_found", "top_5_configurations"]
         for k in required:
             assert k in result
 
@@ -77,10 +79,7 @@ class TestParameterOptimizer:
     def test_configs_respect_size_constraints(self):
         max_pk = 900
         max_ct = 900
-        result = self.optimizer.optimize(
-            target_quantum_bits=80, max_pk_bytes=max_pk,
-            max_ct_bytes=max_ct, n_trials=200
-        )
+        result = self.optimizer.optimize(target_quantum_bits=80, max_pk_bytes=max_pk, max_ct_bytes=max_ct, n_trials=200)
         for cfg in result["top_5_configurations"]:
             assert cfg["pk_bytes"] <= max_pk
             assert cfg["ct_bytes"] <= max_ct

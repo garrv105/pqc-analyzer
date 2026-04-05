@@ -1,12 +1,11 @@
 """
 Tests: CRYSTALS-Kyber KEM — correctness, serialization, benchmark structure
 """
-import pytest
+
 import numpy as np
-from pqc_analyzer.crypto.kyber import (
-    KyberKEM, KyberMath, KyberParams,
-    KYBER_512, KYBER_768, KYBER_1024, KYBER_VARIANTS
-)
+import pytest
+
+from pqc_analyzer.crypto.kyber import KYBER_512, KYBER_768, KYBER_1024, KYBER_VARIANTS, KyberKEM, KyberMath, KyberParams
 
 
 class TestKyberMath:
@@ -36,6 +35,7 @@ class TestKyberMath:
 
     def test_cbd_output_range(self):
         import secrets
+
         seed = secrets.token_bytes(64)
         poly = KyberMath.cbd(eta=2, seed=seed)
         assert len(poly) == 256
@@ -50,6 +50,7 @@ class TestKyberMath:
 
     def test_sample_ntt_in_range(self):
         import secrets
+
         seed = secrets.token_bytes(32)
         poly = KyberMath.sample_ntt(seed)
         assert len(poly) == 256
@@ -91,11 +92,14 @@ class TestKyberParams:
 
 
 class TestKyberKEMCorrectness:
-    @pytest.mark.parametrize("params,name", [
-        (KYBER_512, "Kyber-512"),
-        (KYBER_768, "Kyber-768"),
-        (KYBER_1024, "Kyber-1024"),
-    ])
+    @pytest.mark.parametrize(
+        "params,name",
+        [
+            (KYBER_512, "Kyber-512"),
+            (KYBER_768, "Kyber-768"),
+            (KYBER_1024, "Kyber-1024"),
+        ],
+    )
     def test_encap_decap_correctness(self, params, name):
         """Encapsulated and decapsulated shared secrets must match."""
         kem = KyberKEM(params)
@@ -151,8 +155,7 @@ class TestKyberBenchmark:
     def test_benchmark_returns_correct_keys(self):
         kem = KyberKEM(KYBER_512)
         result = kem.benchmark(iterations=5)
-        required = ["variant", "security_level", "iterations",
-                    "keygen", "encapsulate", "decapsulate", "key_sizes"]
+        required = ["variant", "security_level", "iterations", "keygen", "encapsulate", "decapsulate", "key_sizes"]
         for k in required:
             assert k in result, f"Missing: {k}"
 

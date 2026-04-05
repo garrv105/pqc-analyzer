@@ -14,10 +14,9 @@ Generates research-quality charts and interactive plots:
 Outputs: PNG (matplotlib) + interactive HTML (plotly)
 """
 
-import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 import numpy as np
 
@@ -28,6 +27,7 @@ def save_figure(fig, path: str, dpi: int = 150):
     """Save matplotlib figure with error handling."""
     try:
         import matplotlib.pyplot as plt
+
         fig.savefig(path, dpi=dpi, bbox_inches="tight", facecolor=fig.get_facecolor())
         plt.close(fig)
         logger.info("Saved figure: %s", path)
@@ -41,25 +41,25 @@ def plot_security_landscape(output_dir: str = "outputs") -> str:
     Shows the quantum vulnerability gap.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     algorithms = {
         # name: (classical_bits, quantum_bits, category)
-        "RSA-2048":    (112, 0,   "Classical (Broken by Shor)"),
-        "RSA-4096":    (140, 0,   "Classical (Broken by Shor)"),
-        "ECDH P-256":  (128, 0,   "Classical (Broken by Shor)"),
-        "ECDH P-384":  (192, 0,   "Classical (Broken by Shor)"),
-        "AES-128":     (128, 64,  "Symmetric (Weakened by Grover)"),
-        "AES-256":     (256, 128, "Symmetric (Safe)"),
-        "SHA-256":     (256, 128, "Symmetric (Safe)"),
-        "Kyber-512":   (118, 107, "Post-Quantum (NIST Cat. 1)"),
-        "Kyber-768":   (183, 170, "Post-Quantum (NIST Cat. 3)"),
-        "Kyber-1024":  (257, 240, "Post-Quantum (NIST Cat. 5)"),
-        "NTRU-HPS":    (127, 118, "Post-Quantum (NIST Alt.)"),
+        "RSA-2048": (112, 0, "Classical (Broken by Shor)"),
+        "RSA-4096": (140, 0, "Classical (Broken by Shor)"),
+        "ECDH P-256": (128, 0, "Classical (Broken by Shor)"),
+        "ECDH P-384": (192, 0, "Classical (Broken by Shor)"),
+        "AES-128": (128, 64, "Symmetric (Weakened by Grover)"),
+        "AES-256": (256, 128, "Symmetric (Safe)"),
+        "SHA-256": (256, 128, "Symmetric (Safe)"),
+        "Kyber-512": (118, 107, "Post-Quantum (NIST Cat. 1)"),
+        "Kyber-768": (183, 170, "Post-Quantum (NIST Cat. 3)"),
+        "Kyber-1024": (257, 240, "Post-Quantum (NIST Cat. 5)"),
+        "NTRU-HPS": (127, 118, "Post-Quantum (NIST Alt.)"),
         "Classic McEliece": (255, 255, "Post-Quantum (NIST Alt.)"),
     }
 
@@ -83,13 +83,18 @@ def plot_security_landscape(output_dir: str = "outputs") -> str:
         marker = "D" if "Classical" in cat else ("s" if "Symmetric" in cat else "o")
         label = cat if cat not in seen_cats else None
         seen_cats.add(cat)
-        ax.scatter(classical, quantum, c=color, s=120, marker=marker,
-                   zorder=5, alpha=0.9, label=label)
+        ax.scatter(classical, quantum, c=color, s=120, marker=marker, zorder=5, alpha=0.9, label=label)
         offset = (3, 3)
         if "RSA-2048" in name:
             offset = (3, -12)
-        ax.annotate(name, (classical, quantum), xytext=(classical + offset[0], quantum + offset[1]),
-                    color="#e6edf3", fontsize=8.5, fontweight="bold")
+        ax.annotate(
+            name,
+            (classical, quantum),
+            xytext=(classical + offset[0], quantum + offset[1]),
+            color="#e6edf3",
+            fontsize=8.5,
+            fontweight="bold",
+        )
 
     # Diagonal (y=x) line
     ax.plot([0, 300], [0, 300], "--", color="#30363d", linewidth=1, label="Classical = Quantum")
@@ -100,15 +105,26 @@ def plot_security_landscape(output_dir: str = "outputs") -> str:
 
     # Quantum danger zone
     ax.axhspan(0, 100, alpha=0.08, color="#ef4444")
-    ax.text(10, 40, "QUANTUM DANGER ZONE\n(breakable within 10-15 years)", 
-            color="#ef4444", alpha=0.7, fontsize=9, style="italic")
+    ax.text(
+        10,
+        40,
+        "QUANTUM DANGER ZONE\n(breakable within 10-15 years)",
+        color="#ef4444",
+        alpha=0.7,
+        fontsize=9,
+        style="italic",
+    )
 
     ax.set_xlabel("Classical Security (bits)", color="#e6edf3", fontsize=12)
     ax.set_ylabel("Quantum Security (bits)", color="#e6edf3", fontsize=12)
-    ax.set_title("Cryptographic Security Landscape: Classical vs Post-Quantum",
-                 color="#58a6ff", fontsize=14, fontweight="bold", pad=15)
-    ax.legend(loc="upper left", facecolor="#161b22", edgecolor="#30363d",
-              labelcolor="#e6edf3", fontsize=8.5)
+    ax.set_title(
+        "Cryptographic Security Landscape: Classical vs Post-Quantum",
+        color="#58a6ff",
+        fontsize=14,
+        fontweight="bold",
+        pad=15,
+    )
+    ax.legend(loc="upper left", facecolor="#161b22", edgecolor="#30363d", labelcolor="#e6edf3", fontsize=8.5)
     ax.tick_params(colors="#8b949e")
     ax.spines[["top", "right", "bottom", "left"]].set_color("#30363d")
     ax.set_xlim(0, 300)
@@ -123,12 +139,13 @@ def plot_security_landscape(output_dir: str = "outputs") -> str:
 def plot_performance_comparison(benchmarks: List[Dict], output_dir: str = "outputs") -> str:
     """Bar chart comparing keygen times across all algorithms."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-    names, keygen_ms, colors_list, is_pqc = [], [], [], []
+    names, keygen_ms, colors_list = [], [], []
     color_pqc = "#3b82f6"
     color_classical = "#ef4444"
     color_sym = "#10b981"
@@ -162,26 +179,34 @@ def plot_performance_comparison(benchmarks: List[Dict], output_dir: str = "outpu
     bars = ax.bar(x, keygen_ms, color=colors_list, alpha=0.85, width=0.6)
 
     for bar, ms in zip(bars, keygen_ms):
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
-                f"{ms:.3f}ms", ha="center", va="bottom", color="#e6edf3", fontsize=8)
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.01,
+            f"{ms:.3f}ms",
+            ha="center",
+            va="bottom",
+            color="#e6edf3",
+            fontsize=8,
+        )
 
     ax.set_xticks(x)
     ax.set_xticklabels(names, rotation=30, ha="right", color="#e6edf3", fontsize=9)
     ax.set_ylabel("Key Generation Time (ms)", color="#e6edf3")
-    ax.set_title("Cryptographic Performance Comparison: Key Generation",
-                 color="#58a6ff", fontsize=13, fontweight="bold")
+    ax.set_title(
+        "Cryptographic Performance Comparison: Key Generation", color="#58a6ff", fontsize=13, fontweight="bold"
+    )
     ax.tick_params(colors="#8b949e")
     ax.spines[["top", "right", "bottom", "left"]].set_color("#30363d")
     ax.grid(True, alpha=0.15, color="#30363d", axis="y")
 
     import matplotlib.patches as mpatches
+
     legend_patches = [
         mpatches.Patch(color=color_pqc, label="Post-Quantum (NIST Standard)"),
         mpatches.Patch(color=color_classical, label="Classical (Quantum-Vulnerable)"),
         mpatches.Patch(color=color_sym, label="Symmetric (Quantum-Hardened)"),
     ]
-    ax.legend(handles=legend_patches, facecolor="#161b22", edgecolor="#30363d",
-              labelcolor="#e6edf3", fontsize=9)
+    ax.legend(handles=legend_patches, facecolor="#161b22", edgecolor="#30363d", labelcolor="#e6edf3", fontsize=9)
 
     path = f"{output_dir}/performance_comparison.png"
     save_figure(fig, path)
@@ -191,6 +216,7 @@ def plot_performance_comparison(benchmarks: List[Dict], output_dir: str = "outpu
 def plot_grover_impact(output_dir: str = "outputs") -> str:
     """Show how Grover's algorithm reduces symmetric key security."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -204,26 +230,36 @@ def plot_grover_impact(output_dir: str = "outputs") -> str:
     fig.patch.set_facecolor("#0d1117")
     ax.set_facecolor("#161b22")
 
-    ax.fill_between(key_sizes, quantum_bits, classical_bits, alpha=0.15, color="#ef4444",
-                    label="Security reduction from Grover's attack")
+    ax.fill_between(
+        key_sizes,
+        quantum_bits,
+        classical_bits,
+        alpha=0.15,
+        color="#ef4444",
+        label="Security reduction from Grover's attack",
+    )
     ax.plot(key_sizes, classical_bits, "-", color="#10b981", linewidth=2.5, label="Classical security")
     ax.plot(key_sizes, quantum_bits, "--", color="#ef4444", linewidth=2.5, label="Quantum security (Grover)")
     ax.axhline(y=128, color="#58a6ff", linestyle=":", linewidth=2, alpha=0.8, label="128-bit security target")
 
     # Annotate key points
-    for ks, label in [(128, "AES-128\n→ 64-bit PQ\n(BROKEN)"),
-                      (256, "AES-256\n→ 128-bit PQ\n(SAFE)")]:
+    for ks, label in [(128, "AES-128\n→ 64-bit PQ\n(BROKEN)"), (256, "AES-256\n→ 128-bit PQ\n(SAFE)")]:
         q_sec = ks / 2
         color = "#ef4444" if q_sec < 128 else "#10b981"
         ax.scatter([ks], [q_sec], color=color, s=120, zorder=6)
-        ax.annotate(label, (ks, q_sec), xytext=(ks + 8, q_sec + 10),
-                    color=color, fontsize=9, fontweight="bold",
-                    arrowprops=dict(arrowstyle="->", color=color, lw=1.5))
+        ax.annotate(
+            label,
+            (ks, q_sec),
+            xytext=(ks + 8, q_sec + 10),
+            color=color,
+            fontsize=9,
+            fontweight="bold",
+            arrowprops=dict(arrowstyle="->", color=color, lw=1.5),
+        )
 
     ax.set_xlabel("Key Size (bits)", color="#e6edf3", fontsize=12)
     ax.set_ylabel("Security Strength (bits)", color="#e6edf3", fontsize=12)
-    ax.set_title("Grover's Algorithm Impact on Symmetric Cryptography",
-                 color="#58a6ff", fontsize=13, fontweight="bold")
+    ax.set_title("Grover's Algorithm Impact on Symmetric Cryptography", color="#58a6ff", fontsize=13, fontweight="bold")
     ax.legend(facecolor="#161b22", edgecolor="#30363d", labelcolor="#e6edf3", fontsize=9)
     ax.tick_params(colors="#8b949e")
     ax.spines[["top", "right", "bottom", "left"]].set_color("#30363d")
@@ -238,20 +274,20 @@ def plot_grover_impact(output_dir: str = "outputs") -> str:
 def plot_kyber_key_sizes(output_dir: str = "outputs") -> str:
     """Stacked bar chart comparing Kyber key/ciphertext sizes vs RSA/ECC."""
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
 
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     data = {
-        "RSA-2048":      {"public": 256,  "private": 1192, "ciphertext": 256},
-        "RSA-4096":      {"public": 512,  "private": 2349, "ciphertext": 512},
-        "ECDH P-256":    {"public": 32,   "private": 32,   "ciphertext": 32},
-        "ECDH P-384":    {"public": 48,   "private": 48,   "ciphertext": 48},
-        "Kyber-512":     {"public": 800,  "private": 1632, "ciphertext": 768},
-        "Kyber-768":     {"public": 1184, "private": 2400, "ciphertext": 1088},
-        "Kyber-1024":    {"public": 1568, "private": 3168, "ciphertext": 1568},
+        "RSA-2048": {"public": 256, "private": 1192, "ciphertext": 256},
+        "RSA-4096": {"public": 512, "private": 2349, "ciphertext": 512},
+        "ECDH P-256": {"public": 32, "private": 32, "ciphertext": 32},
+        "ECDH P-384": {"public": 48, "private": 48, "ciphertext": 48},
+        "Kyber-512": {"public": 800, "private": 1632, "ciphertext": 768},
+        "Kyber-768": {"public": 1184, "private": 2400, "ciphertext": 1088},
+        "Kyber-1024": {"public": 1568, "private": 3168, "ciphertext": 1568},
     }
 
     names = list(data.keys())
@@ -275,21 +311,36 @@ def plot_kyber_key_sizes(output_dir: str = "outputs") -> str:
         for bar in bars:
             h = bar.get_height()
             if h > 50:
-                ax.text(bar.get_x() + bar.get_width()/2, h + 10, f"{h}B",
-                        ha="center", va="bottom", color="#e6edf3", fontsize=7, rotation=45)
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    h + 10,
+                    f"{h}B",
+                    ha="center",
+                    va="bottom",
+                    color="#e6edf3",
+                    fontsize=7,
+                    rotation=45,
+                )
 
     # Add quantum vulnerability labels
     for i, name in enumerate(names):
         is_broken = "RSA" in name or "ECDH" in name
-        ax.text(i, -180, "⚠ BROKEN" if is_broken else "✓ PQC",
-                ha="center", color="#ef4444" if is_broken else "#10b981",
-                fontsize=8, fontweight="bold")
+        ax.text(
+            i,
+            -180,
+            "⚠ BROKEN" if is_broken else "✓ PQC",
+            ha="center",
+            color="#ef4444" if is_broken else "#10b981",
+            fontsize=8,
+            fontweight="bold",
+        )
 
     ax.set_xticks(x)
     ax.set_xticklabels(names, rotation=20, ha="right", color="#e6edf3", fontsize=9)
     ax.set_ylabel("Size (bytes)", color="#e6edf3", fontsize=12)
-    ax.set_title("Key and Ciphertext Sizes: Classical vs Post-Quantum KEMs",
-                 color="#58a6ff", fontsize=13, fontweight="bold")
+    ax.set_title(
+        "Key and Ciphertext Sizes: Classical vs Post-Quantum KEMs", color="#58a6ff", fontsize=13, fontweight="bold"
+    )
     ax.legend(facecolor="#161b22", edgecolor="#30363d", labelcolor="#e6edf3", fontsize=10)
     ax.tick_params(colors="#8b949e")
     ax.spines[["top", "right", "bottom", "left"]].set_color("#30363d")

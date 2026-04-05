@@ -15,9 +15,8 @@ Models:
 
 import logging
 import pickle
-import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional
 
 import numpy as np
 
@@ -28,6 +27,7 @@ logger = logging.getLogger(__name__)
 # Feature engineering for cryptographic parameters
 # ---------------------------------------------------------------------------
 
+
 class CryptoFeatureExtractor:
     """
     Extracts numerical features from cryptographic parameter sets
@@ -35,57 +35,63 @@ class CryptoFeatureExtractor:
     """
 
     FEATURE_NAMES = [
-        "key_bits",                   # Effective key/modulus size
-        "lattice_dimension",          # n (polynomial degree or lattice rank)
-        "modulus_log2",               # log2(q)
-        "noise_eta",                  # Error distribution width
-        "compression_du",             # Ciphertext compression (u)
-        "compression_dv",             # Ciphertext compression (v)
-        "module_rank_k",              # Kyber: module rank k
-        "key_size_bytes",             # Public key size
-        "ciphertext_size_bytes",      # Ciphertext size
-        "performance_score",          # Relative speed (keygen ms^-1, normalized)
-        "quantum_vulnerable",         # 0 = PQC, 1 = classical
-        "algorithm_type",             # 0=lattice, 1=RSA, 2=ECC, 3=hash
+        "key_bits",  # Effective key/modulus size
+        "lattice_dimension",  # n (polynomial degree or lattice rank)
+        "modulus_log2",  # log2(q)
+        "noise_eta",  # Error distribution width
+        "compression_du",  # Ciphertext compression (u)
+        "compression_dv",  # Ciphertext compression (v)
+        "module_rank_k",  # Kyber: module rank k
+        "key_size_bytes",  # Public key size
+        "ciphertext_size_bytes",  # Ciphertext size
+        "performance_score",  # Relative speed (keygen ms^-1, normalized)
+        "quantum_vulnerable",  # 0 = PQC, 1 = classical
+        "algorithm_type",  # 0=lattice, 1=RSA, 2=ECC, 3=hash
     ]
 
     def extract_kyber(self, params, benchmark_results: Dict) -> np.ndarray:
         """Extract features from Kyber parameters + benchmark results."""
         keygen_ms = benchmark_results.get("keygen", {}).get("mean_ms", 1.0)
         perf = 1.0 / max(keygen_ms, 0.001)
-        return np.array([
-            256 * params.k * params.n / 1000,   # effective key dimension
-            params.n,
-            np.log2(params.q),
-            params.eta1,
-            params.du,
-            params.dv,
-            params.k,
-            params.public_key_bytes,
-            params.ciphertext_bytes,
-            min(perf / 100, 1.0),
-            0,   # not quantum vulnerable
-            0,   # lattice-based
-        ], dtype=np.float64)
+        return np.array(
+            [
+                256 * params.k * params.n / 1000,  # effective key dimension
+                params.n,
+                np.log2(params.q),
+                params.eta1,
+                params.du,
+                params.dv,
+                params.k,
+                params.public_key_bytes,
+                params.ciphertext_bytes,
+                min(perf / 100, 1.0),
+                0,  # not quantum vulnerable
+                0,  # lattice-based
+            ],
+            dtype=np.float64,
+        )
 
     def extract_classical(self, algorithm: str, key_bits: int, benchmark: Dict) -> np.ndarray:
         keygen_ms = benchmark.get("keygen", {}).get("mean_ms", 100.0)
         perf = 1.0 / max(keygen_ms, 0.001)
         algo_type = 1 if "RSA" in algorithm else (2 if "ECDH" in algorithm else 3)
-        return np.array([
-            key_bits,
-            key_bits,
-            np.log2(key_bits),
-            0,    # no noise
-            0,
-            0,
-            1,    # no module rank
-            key_bits // 8,
-            key_bits // 8,
-            min(perf / 100, 1.0),
-            1,    # quantum vulnerable
-            algo_type,
-        ], dtype=np.float64)
+        return np.array(
+            [
+                key_bits,
+                key_bits,
+                np.log2(key_bits),
+                0,  # no noise
+                0,
+                0,
+                1,  # no module rank
+                key_bits // 8,
+                key_bits // 8,
+                min(perf / 100, 1.0),
+                1,  # quantum vulnerable
+                algo_type,
+            ],
+            dtype=np.float64,
+        )
 
 
 class SecurityStrengthPredictor:
@@ -99,13 +105,13 @@ class SecurityStrengthPredictor:
     TRAINING_DATA = [
         # (k, n, q, eta1, du, dv, pk_bytes, ct_bytes) → (classical, quantum)
         # Kyber variants
-        (2, 256, 3329, 3, 10, 4, 800,  768,  118, 107),
+        (2, 256, 3329, 3, 10, 4, 800, 768, 118, 107),
         (3, 256, 3329, 2, 10, 4, 1184, 1088, 183, 170),
         (4, 256, 3329, 2, 11, 5, 1568, 1568, 257, 240),
         # Weakened Kyber (for AI prediction demonstration)
-        (1, 256, 3329, 5, 8,  4, 416,  352,   78,  70),
-        (2, 256, 1024, 4, 10, 4, 700,  640,   90,  82),
-        (2, 128, 3329, 3, 10, 4, 416,  384,   88,  80),
+        (1, 256, 3329, 5, 8, 4, 416, 352, 78, 70),
+        (2, 256, 1024, 4, 10, 4, 700, 640, 90, 82),
+        (2, 128, 3329, 3, 10, 4, 416, 384, 88, 80),
         # Strong variants
         (5, 256, 3329, 2, 11, 5, 1952, 1952, 310, 290),
         (6, 256, 3329, 2, 12, 5, 2336, 2336, 380, 350),
@@ -125,8 +131,7 @@ class SecurityStrengthPredictor:
         from sklearn.ensemble import GradientBoostingRegressor
         from sklearn.preprocessing import StandardScaler
 
-        X = np.array([[r[0], r[1], np.log2(r[2]), r[3], r[4], r[5], r[6], r[7]]
-                      for r in self.TRAINING_DATA])
+        X = np.array([[r[0], r[1], np.log2(r[2]), r[3], r[4], r[5], r[6], r[7]] for r in self.TRAINING_DATA])
         y_classical = np.array([r[8] for r in self.TRAINING_DATA])
         y_quantum = np.array([r[9] for r in self.TRAINING_DATA])
 
@@ -139,8 +144,7 @@ class SecurityStrengthPredictor:
         self._model_quantum.fit(X_scaled, y_quantum)
         logger.info("Security strength predictor trained on %d samples", len(X))
 
-    def predict(self, k: int, n: int, q: int, eta: int, du: int, dv: int,
-                pk_bytes: int, ct_bytes: int) -> Dict:
+    def predict(self, k: int, n: int, q: int, eta: int, du: int, dv: int, pk_bytes: int, ct_bytes: int) -> Dict:
         """Predict security strength for given Kyber-like parameters."""
         features = np.array([[k, n, np.log2(q), eta, du, dv, pk_bytes, ct_bytes]])
         features_scaled = self._scaler.transform(features)
@@ -189,7 +193,7 @@ class ParameterOptimizer:
     """
     Bayesian optimization to find optimal Kyber parameter configurations
     that maximize security while minimizing key/ciphertext size.
-    
+
     Uses Expected Improvement acquisition function over the parameter space.
     """
 
@@ -206,7 +210,7 @@ class ParameterOptimizer:
     ) -> Dict:
         """
         Search for Pareto-optimal parameter sets.
-        
+
         Objective: maximize quantum security subject to size constraints.
         """
         rng = np.random.default_rng(seed)
@@ -238,14 +242,22 @@ class ParameterOptimizer:
             q_security = result["predicted_quantum_security_bits"]
 
             if q_security >= target_quantum_bits:
-                best_configs.append({
-                    "k": k, "n": n, "q": q, "eta1": eta, "du": du, "dv": dv,
-                    "pk_bytes": pk_bytes, "ct_bytes": ct_bytes,
-                    "predicted_quantum_bits": round(q_security, 1),
-                    "predicted_classical_bits": round(result["predicted_classical_security_bits"], 1),
-                    "nist_category": result["nist_category"],
-                    "efficiency_score": round(q_security / (pk_bytes + ct_bytes) * 100, 4),
-                })
+                best_configs.append(
+                    {
+                        "k": k,
+                        "n": n,
+                        "q": q,
+                        "eta1": eta,
+                        "du": du,
+                        "dv": dv,
+                        "pk_bytes": pk_bytes,
+                        "ct_bytes": ct_bytes,
+                        "predicted_quantum_bits": round(q_security, 1),
+                        "predicted_classical_bits": round(result["predicted_classical_security_bits"], 1),
+                        "nist_category": result["nist_category"],
+                        "efficiency_score": round(q_security / (pk_bytes + ct_bytes) * 100, 4),
+                    }
+                )
 
         # Sort by efficiency (security per byte)
         best_configs.sort(key=lambda x: x["efficiency_score"], reverse=True)
