@@ -31,6 +31,7 @@ setup(
         "dev": [
             "pytest>=7.4.0",
             "pytest-cov>=4.1.0",
+            "pytest-timeout>=2.3.0",
             "pytest-asyncio>=0.23.0",
             "httpx>=0.27.0",
             "ruff>=0.3.0",

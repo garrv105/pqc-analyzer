@@ -47,11 +47,13 @@ class KyberParams:
 
     @property
     def public_key_bytes(self) -> int:
-        return 32 * self.k * 12 // 8 + 32  # ek = t_hat bytes + rho
+        # ek = t_hat (k polynomials × 256 coeffs × 12 bits / 8) + rho (32 bytes)
+        return self.k * self.n * 12 // 8 + 32
 
     @property
     def private_key_bytes(self) -> int:
-        return 32 * self.k * 12 // 8  # dk = s bytes
+        # dk = s_hat (k polynomials × 256 coeffs × 12 bits / 8)
+        return self.k * self.n * 12 // 8
 
     @property
     def ciphertext_bytes(self) -> int:
