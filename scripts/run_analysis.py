@@ -10,6 +10,7 @@ Runs the complete analysis suite:
 6. Print comprehensive report
 """
 
+import argparse
 import json
 import logging
 import sys
@@ -20,6 +21,39 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("pqc_analyzer.run")
 
+# Algorithm name aliases accepted by --algorithms flag
+ALGO_ALIASES = {
+    "kyber512": "Kyber-512",
+    "kyber768": "Kyber-768",
+    "kyber1024": "Kyber-1024",
+    "rsa2048": "RSA-2048",
+    "rsa4096": "RSA-4096",
+    "ecdhx25519": "ECDH-X25519",
+    "ecdhp256": "ECDH-P256",
+}
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="PQC Analyzer - Full Analysis Pipeline")
+    parser.add_argument(
+        "--algorithms",
+        nargs="*",
+        default=None,
+        help="Subset of algorithms to benchmark (e.g. kyber512 rsa2048). Defaults to all.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="outputs",
+        help="Directory to write charts and results (default: outputs)",
+    )
+    parser.add_argument(
+        "--no-show",
+        action="store_true",
+        default=False,
+        help="Suppress interactive plot display (for CI/headless environments)",
+    )
+    return parser.parse_args()
+
 
 def print_banner():
     print("\n" + "=" * 70)
@@ -29,9 +63,28 @@ def print_banner():
 
 
 def main():
+    args = parse_args()
+    output_dir = args.output_dir
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    # Normalise requested algorithm names to lowercase without hyphens/spaces
+    requested = {a.lower().replace("-", "").replace("_", "") for a in (args.algorithms or [])}
+
+    def _want_kyber(variant_name: str) -> bool:
+        """Return True if this Kyber variant was requested (or no filter given)."""
+        if not requested:
+            return True
+        key = variant_name.lower().replace("-", "").replace("_", "").replace(" ", "")
+        return key in requested
+
+    def _want_classical(alg_name: str) -> bool:
+        """Return True if this classical algorithm was requested (or no filter given)."""
+        if not requested:
+            return True
+        key = alg_name.lower().replace("-", "").replace("_", "").replace(" ", "")
+        return key in requested
+
     print_banner()
-    output_dir = "outputs"
-    Path(output_dir).mkdir(exist_ok=True)
 
     # -----------------------------------------------
     # 1. Kyber benchmarks
@@ -41,6 +94,8 @@ def main():
 
     kyber_results = {}
     for name, params in KYBER_VARIANTS.items():
+        if not _want_kyber(name):
+            continue
         print(f"       Running {name} (50 iterations)...")
         kem = KyberKEM(params)
         result = kem.benchmark(iterations=50)
@@ -65,20 +120,23 @@ def main():
     try:
         from pqc_analyzer.crypto.classical import ECDHBenchmark, RSABenchmark, SymmetricBenchmark
 
-        for alg, cls, args, iters in [
+        for alg, cls, cls_args, iters in [
             ("RSA-2048", RSABenchmark, (2048,), 5),
             ("RSA-4096", RSABenchmark, (4096,), 5),
             ("ECDH-X25519", ECDHBenchmark, ("X25519",), 50),
             ("ECDH-P256", ECDHBenchmark, ("P-256",), 50),
         ]:
+            if not _want_classical(alg):
+                continue
             print(f"       {alg}...")
-            r = cls(*args).benchmark(iters)
+            r = cls(*cls_args).benchmark(iters)
             classical_results.append(r)
             print(f"         KeyGen: {r['keygen']['mean_ms']:.2f}ms")
 
-        sym = SymmetricBenchmark().benchmark(iterations=100)
-        classical_results.append(sym)
-        print(f"       AES-256-GCM: {sym['results_by_size']['1KB']['throughput_mbps']:.1f} MB/s (1KB)")
+        if not requested or _want_classical("AES-256-GCM"):
+            sym = SymmetricBenchmark().benchmark(iterations=100)
+            classical_results.append(sym)
+            print(f"       AES-256-GCM: {sym['results_by_size']['1KB']['throughput_mbps']:.1f} MB/s (1KB)")
     except Exception as e:
         print(f"       WARNING: Classical benchmarks failed: {e}")
 
@@ -157,6 +215,11 @@ def main():
     # -----------------------------------------------
     print("\n[ 5/5 ] Generating visualizations...")
     try:
+        import matplotlib
+
+        if args.no_show:
+            matplotlib.use("Agg")
+
         from pqc_analyzer.visualization.charts import generate_all_charts
 
         all_benchmarks = list(kyber_results.values()) + classical_results
